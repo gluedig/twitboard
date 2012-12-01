@@ -24,7 +24,7 @@ def hashtag_topn(hashtag, number=10):
     if not hashtag_score:
         abort(404, "Hashtag not found")
         
-    for (user_key, score) in hashtag_score.most_common(number):
+    for (user_key, score) in hashtag_score:
         user_data = app.data.user_data_bykey(user_key)
         if not user_data:
             continue

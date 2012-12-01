@@ -26,7 +26,11 @@ class MemcacheDS(object):
     
     def hashtag_topn(self, hashtag, number):
         hashtag_score_key = self._hashtag_score_key(hashtag)
-        return self.mc.get(hashtag_score_key)
+        hashtag_score = self.mc.get(hashtag_score_key)
+        if hashtag_score:
+            return hashtag_score.most_common(number)
+        else:
+            return None
 
     def user_data_byid(self, user_id):
         user_key = self._user_key(user_id)
@@ -68,7 +72,7 @@ class MemcacheDS(object):
         hashtag_score[user_key] = score
         if len(hashtag_score) > self.limit:
             hashtag_score = Counter(dict(hashtag_score.most_common(self.limit)))
-                
+            
         
         self.mc.set(hashtag_score_key, hashtag_score)
         #logging.debug("Hashtag: %s Top: %s", hashtag, hashtag_score)

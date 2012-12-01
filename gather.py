@@ -23,7 +23,7 @@ class QueueHandler(threading.Thread):
         while(self.do_run):
             try:
                 (hashtag, user_id, user_name, user_profile_img_url) = self.queue.get(block=True, timeout=10)
-                logging.debug("Hashtag: %s Id: %d Name: %s Url: %s", hashtag, user_id, user_name, user_profile_img_url)
+                logging.debug("Hashtag: %s Id: %d Name: %s", hashtag, user_id, user_name)
                 self.data.insert(hashtag, user_id, user_name, user_profile_img_url)
                 self.queue.task_done()
             except Empty:
@@ -92,7 +92,7 @@ if __name__ == '__main__':
                     'consumer_secret': config.get('TwitterOAuth', 'consumer_secret')
     }
     
-    LOGGING_FORMAT = "%(asctime)s:%(levelname)s:%(threadName)s:%(message)s"
+    LOGGING_FORMAT = "%(asctime)s:%(levelname)s:%(threadName)s:%(funcName)s:%(message)s"
     logging.basicConfig(level=logging.DEBUG, format=LOGGING_FORMAT)
 
     dataStore = MemcacheDS.MemcacheDS()
