@@ -11,52 +11,6 @@ import time
 from urllib2 import HTTPError
 from Queue import Queue, Empty
 
-from collections import Counter
-from hashlib import md5
-import memcache
-
-SCORE_LIMIT = 25
-class MemcDataStore(object):
-    def __init__(self, flush=False):
-        self.mc = memcache.Client(['127.0.0.1:11211'], debug=0)
-        if flush:
-            self.mc.flush_all()
-
-    def insert(self, hashtag, user_id, user_name, user_profile_img_url):
-        user_key = md5("user_id:%s"%user_id).hexdigest()
-        user_hashtag_key = md5("user_id:%s,hashtag:%s"%(user_id,hashtag)).hexdigest()
-        hashtag_score_key = md5("hashtag:%s"%hashtag).hexdigest()
-        
-        
-        user_data = self.mc.get(user_key)
-        if not user_data:
-            user_data = (user_id, user_name, user_profile_img_url, [hashtag])
-        
-        (user_id, user_name, user_profile_img_url, user_hashtags) = user_data
-        if hashtag not in user_hashtags:
-            user_hashtags.append(hashtag)
-        
-        self.mc.set(user_key, user_data)
-        
-        user_hashtag = self.mc.get(user_hashtag_key)
-        if not user_hashtag:
-            self.mc.set(user_hashtag_key, 0)
-            
-        score = self.mc.incr(user_hashtag_key)
-        logging.debug("Hashtag: %s User: %s Score: %s", hashtag, user_id, score)
-        
-        hashtag_score = self.mc.get(hashtag_score_key)
-        if not hashtag_score:
-            hashtag_score = Counter()
-        
-        hashtag_score[user_key] = score
-        if len(hashtag_score) > SCORE_LIMIT:
-            hashtag_score = Counter(dict(hashtag_score.most_common(SCORE_LIMIT)))
-                
-        
-        self.mc.set(hashtag_score_key, hashtag_score)
-        #logging.debug("Hashtag: %s Top: %s", hashtag, hashtag_score)
-
 class QueueHandler(threading.Thread):
     def __init__(self, msgQueue, dataStore):
         super(QueueHandler, self).__init__(name="QH")
@@ -120,6 +74,7 @@ class HashTagThread(threading.Thread):
                 break
         logging.info("Finishing")
 
+from datastore import MemcacheDS
 if __name__ == '__main__':
     import ConfigParser
     
@@ -140,7 +95,7 @@ if __name__ == '__main__':
     LOGGING_FORMAT = "%(asctime)s:%(levelname)s:%(threadName)s:%(message)s"
     logging.basicConfig(level=logging.DEBUG, format=LOGGING_FORMAT)
 
-    dataStore = MemcDataStore()
+    dataStore = MemcacheDS.MemcacheDS()
     
     msgQ = Queue()
     msgQh = QueueHandler(msgQ, dataStore)

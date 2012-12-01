@@ -4,8 +4,6 @@ Created on Nov 30, 2012
 @author: raber
 '''
 from flask import Flask, abort, render_template
-import memcache
-from hashlib import md5
 import json
 
 
@@ -19,8 +17,7 @@ def main_route():
 @app.route('/api/tag/<hashtag>/<int:number>')
 def hashtag_topn(hashtag, number=10):
     
-    hashtag_score_key = md5("hashtag:%s"%hashtag).hexdigest()
-    hashtag_score = app.mc.get(hashtag_score_key)
+    hashtag_score = app.data.hashtag_topn(hashtag, number)
     leaderboard = {'hashtag':hashtag, 'top':number, 'count': 0, 'list': []}
     
     count = 0
@@ -28,7 +25,7 @@ def hashtag_topn(hashtag, number=10):
         abort(404, "Hashtag not found")
         
     for (user_key, score) in hashtag_score.most_common(number):
-        user_data = app.mc.get(user_key)
+        user_data = app.data.user_data_bykey(user_key)
         if not user_data:
             continue
         
@@ -44,9 +41,8 @@ def hashtag_topn(hashtag, number=10):
 
 @app.route('/api/user/<user_id>/<hashtag>')
 def user_hashtag_score(user_id, hashtag):
-    user_hashtag_key = md5("user_id:%s,hashtag:%s"%(user_id,hashtag)).hexdigest()
-    
-    score = app.mc.get(user_hashtag_key)
+  
+    score = app.data.user_score_byid(user_id, hashtag)
     if not score:
         score = 0
     
@@ -54,11 +50,10 @@ def user_hashtag_score(user_id, hashtag):
 
 @app.route('/api/user/<user_id>')
 def user_info(user_id):
-    user_key = md5("user_id:%s"%user_id).hexdigest()
-    user_data = app.mc.get(user_key)
+    user_data = app.data.user_data_byid(user_id)
     
     if not user_data:
-        abort(404, "User not fund")
+        abort(404, "User not found")
     
     (_user_id, user_name, user_profile_img_url, user_hashtags) = user_data
     
@@ -79,8 +74,9 @@ def page_user_info(user_id):
 def page_hashtag_topn(hashtag, number=10):
     return render_template('hashtag_score.tmp', hashtag=hashtag, number=number)
 
+from datastore import MemcacheDS
 if __name__ == '__main__':
     app.debug = True
-    app.mc = memcache.Client(['127.0.0.1:11211'], debug=0)
+    app.data = MemcacheDS.MemcacheDS()
     
     app.run()
