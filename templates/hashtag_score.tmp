@@ -5,31 +5,173 @@
         <!--[if lt IE 9]>
         <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
         <![endif]-->
-        <script src="//netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/js/bootstrap.min.js"></script>
         <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
-    
+        <link rel="stylesheet" href="http://code.jquery.com/ui/1.9.2/themes/base/jquery-ui.css" />
+        <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.9.2/jquery-ui.min.js"></script>
+        <script src="//netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/js/bootstrap.min.js"></script>
+    	<style>
+    #leaderboard { list-style-type: none; margin: 0; padding: 0; width: 30%; }
+    #leaderboard li { margin: 0px 3px 3px 3px; padding: 0.1em; padding-left: 1.5em; font-size: 1em; height: 16px; }
+    li, ul { 
+    	position: relative;
+    	top: 0;
+    	left: 0; 
+    }
+    </style>
     
 <script type="text/javascript">
 
-$(document).ready(function() {
-    $.getJSON('/api/tag/{{hashtag}}/{{number}}', function(data) {
-      var items = [];
+function moveUp(up, down, it) {
+    /*
+    console.log("MoveUp Up:");
+    console.log(up[0]);
+    console.log("MoveUp Down:");
+    console.log(down[0]);
+    */
+    var elemHeight = $(up).height();
+    $(down).animate(
+    	{"top": '+=' + elemHeight},
+    	{ duration : 250,
+    	}
+    );
+    
+    $(up).animate(
+    	{"top": '-=' + elemHeight},
+    	{duration: 250,
+    	 complete: function() {
+      	  		var old_up_pos = +up.attr('pos');
+      	  		var old_down_pos = +down.attr('pos');
+      	  		var new_up_pos = old_up_pos - 1;
+      	  		var new_down_pos = old_down_pos + 1;
+        		//console.log(old_up_pos, old_down_pos);
+  				up.attr('pos', new_up_pos);
+  				down.attr('pos', new_down_pos);
+  				$(up).remove();
+        		$(down).before($(up));
+        		$("li").attr("style", "");
+				/*
+  				console.log(up.attr('pos'), down.attr('pos'));
+  				console.log("After Up:");
+    			console.log(up[0]);
+    			console.log("After Down:");
+    			console.log(down[0]);
+    			*/
+        		move(it);
+    		}
+    	}
+    );
+};
 
+$("li").live("click", function() {
+	moveUp($(this), $(this).prev());
+});
+
+function move(it) {
+	try {
+		var pair = it.next();
+		var value = pair[1];
+		if (value['up'] && value['down'])
+			moveUp(value['up'], value['down'], it);
+	} catch (stopIteration) {
+		return false;
+	}
+};
+
+
+function updatemessage(e) {
+	var data = jQuery.parseJSON(e.data);
+  	var from = $("#"+data.user_id); 
+  	var curr_pos = +from.attr('pos');
+  	var move_dist = +data.move
+  	var move_dir = 0; 
+  	var move_abs = 0;
+  	var it = null;
+  	
+  	
+  	if (! curr_pos)
+  		return false;
+  		
+  	//down
+  	if ( move_dist < 0)
+  	{
+  		move_dir = 1;
+  		move_abs = -move_dist;
+  	};
+  	//up
+  	if (move_dist > 0)
+  	{
+  		move_dir = -1;
+  		move_abs = move_dist;
+  	};
+  	
+	console.log(e.data, curr_pos, data.move, curr_pos + move_dist);
+	
+	var ops = [];  		
+	while(move_abs) {
+		var to = null;
+		var op = {};
+  		$.each($("#leaderboard li[pos]"), function(key, value) {
+  			pos = $(value).attr('pos');
+				  			
+  			if (move_dir == 1)
+  				if (pos == curr_pos+1) {
+  					to = $(value);
+  					//console.log(from, to);
+  					op['down'] = from;
+  					op['up'] = to;
+  				}
+  			if (move_dir == -1)
+  				if (pos == curr_pos-1) {
+  					to = $(value);
+  					//console.log(to, from);
+  					op['down'] = to;
+  					op['up'] = from;
+  				}
+  			
+  			if (to)
+  				return false;
+  		});
+  		
+  		
+  		if (to == null)
+  			break;
+  		ops.push(op);
+  		
+  		curr_pos += move_dir;
+		move_abs--;
+			  			
+	};
+	
+	if (ops.length > 0) {
+		it = Iterator(ops);
+		move(it);
+	}
+};
+function refresh() {
+  $.getJSON('/api/tag/{{hashtag}}/{{number}}', function(data) {
+  	  $("#leaderboard").empty();
   	  $.each(data['list'], function(key, val) {
-   		items.push('<li id="' + key + '">' + val['score'] + ' ' + val['user_info']['user_name']+'</li>');
+   		var item = '<li class="" id="' + val['user_info']['user_id']+ '" pos='+key+'>' + val['score'] + ' ' + val['user_info']['user_name']+'</li>'
+   		$("#leaderboard").append(item)
       });
     
-      var in_html = '<li class="nav-header">{{number}} most active users for #{{hashtag}}</li>'
-      in_html += items.join('')
-      
-      $('<ul/>', {
-        'class': 'nav nav-list',
-        html: in_html
-      }).appendTo('body');
     });
+};
+
+
+$(document).ready(function() {
+	refresh();
+    $("#leaderboard").disableSelection();
+      
+    var source = new EventSource('/updates/{{hashtag}}');
+    source.onmessage = function(e){updatemessage(e)};
+	source.onerror = function(s){refresh()};
 });
 
 </script>
     </head>
-    <body></body>
+    <body>
+    <ul id="leaderboard">
+    </ul>
+    </body>
 </html>

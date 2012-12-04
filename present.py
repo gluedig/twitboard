@@ -3,9 +3,9 @@ Created on Nov 30, 2012
 
 @author: raber
 '''
-from flask import Flask, abort, render_template
+from flask import Flask, abort, render_template, Response, request
 import json
-
+import time
 
 app = Flask(__name__)
 
@@ -74,9 +74,44 @@ def page_user_info(user_id):
 def page_hashtag_topn(hashtag, number=10):
     return render_template('hashtag_score.tmp', hashtag=hashtag, number=number)
 
+from collections import Iterable
+import random
+class HashtagUpdates(Iterable):
+    def __init__(self, hashtag, ds):
+        self.hashtag = hashtag
+        self.data = ds
+        self.n = 0
+        
+        
+    def __iter__(self):
+        hashtag_score = self.data.hashtag_topn(self.hashtag, 25)
+        while hashtag_score:
+            
+            pos = random.randint(0, len(hashtag_score)-1)
+            dir = -1 if random.randint(0,1) == 0 else 1
+            dist = random.randint(1,len(hashtag_score)/3)
+            move = dir*dist
+            new_pos = pos + (dir*dist)
+            
+            if new_pos < 0 or new_pos > len(hashtag_score):
+                new_pos = pos
+
+            user_id = self.data.user_data_bykey(hashtag_score[pos][0])[0]
+            score = hashtag_score[pos][1]
+            data = {'user_id': user_id, 'move' : move, 'score': score}
+            yield unicode("event: message\nid: {0}\ndata: {1}\n\n".format(self.n, json.dumps(data)))
+            
+            time.sleep(5)
+            hashtag_score = self.data.hashtag_topn(self.hashtag, 25)
+            self.n += 1
+
+@app.route('/updates/<hashtag>', methods=["POST","GET"])
+def hashtag_updates(hashtag):
+    return Response(HashtagUpdates(hashtag, app.data), headers=[('cache-control','no-cache'), ('connection', 'keep-alive')],
+        content_type='text/event-stream')
+
 from datastore import MemcacheDS
 if __name__ == '__main__':
     app.debug = True
     app.data = MemcacheDS.MemcacheDS()
-    
-    app.run()
+    app.run(threaded=True)

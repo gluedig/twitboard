@@ -95,13 +95,13 @@ if __name__ == '__main__':
     LOGGING_FORMAT = "%(asctime)s:%(levelname)s:%(threadName)s:%(funcName)s:%(message)s"
     logging.basicConfig(level=logging.DEBUG, format=LOGGING_FORMAT)
 
-    dataStore = MemcacheDS.MemcacheDS()
+    dataStore = MemcacheDS.MemcacheDS(flush=False, limit=25)
     
     msgQ = Queue()
     msgQh = QueueHandler(msgQ, dataStore)
     msgQh.start()
     
-    jobTh = HashTagThread('job', msgQ, auth_config)
+    jobTh = HashTagThread('ipadgames', msgQ, auth_config)
     jobTh.start()
     
     try:

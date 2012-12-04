@@ -3,10 +3,19 @@ Created on Dec 1, 2012
 
 @author: raber
 '''
-from collections import Counter
+from collections import Counter, OrderedDict
 from hashlib import md5
 import memcache
 import logging
+
+class OrderedCounter(Counter, OrderedDict):
+    'Counter that remembers the order elements are first encountered'
+    
+    def __repr__(self):
+        return '%s(%r)' % (self.__class__.__name__, OrderedDict(self))
+    
+    def __reduce__(self):
+        return self.__class__, (OrderedDict(self),)
 
 class MemcacheDS(object):
     def __init__(self, flush=False, limit=25):
@@ -23,6 +32,9 @@ class MemcacheDS(object):
         
     def _user_hashtag_score_key(self, user_id, hashtag):
         return md5("user_id:%s,hashtag:%s"%(user_id,hashtag)).hexdigest()
+    
+    def _hashtag_users_key(self, hashtag):
+        return md5("hashtagusers:%s"%hashtag).hexdigest()
     
     def hashtag_topn(self, hashtag, number):
         hashtag_score_key = self._hashtag_score_key(hashtag)
@@ -47,7 +59,9 @@ class MemcacheDS(object):
         user_key = self._user_key(user_id)
         user_hashtag_key = self._user_hashtag_score_key(user_id, hashtag) 
         hashtag_score_key = self._hashtag_score_key(hashtag)
-                
+        hashtag_users_key = self._hashtag_users_key(hashtag)
+        
+        #add/update user data        
         user_data = self.mc.get(user_key)
         if not user_data:
             user_data = (user_id, user_name, user_profile_img_url, [hashtag])
@@ -55,24 +69,43 @@ class MemcacheDS(object):
         (user_id, user_name, user_profile_img_url, user_hashtags) = user_data
         if hashtag not in user_hashtags:
             user_hashtags.append(hashtag)
-        
         self.mc.set(user_key, user_data)
         
+        #add/update users for hashtag
+        hashtag_users = self.mc.get(hashtag_users_key)
+        if not hashtag_users:
+            hashtag_users = set()
+        hashtag_users.add(user_id)
+        self.mc.set(hashtag_users_key, hashtag_users)
+        
+        #add/update user hashtag score
         user_hashtag = self.mc.get(user_hashtag_key)
         if not user_hashtag:
             self.mc.set(user_hashtag_key, 0)
-            
         score = self.mc.incr(user_hashtag_key)
-        logging.debug("Hashtag: %s User: %s Score: %s", hashtag, user_id, score)
         
+        #add/update overall hastag score
         hashtag_score = self.mc.get(hashtag_score_key)
         if not hashtag_score:
-            hashtag_score = Counter()
+            hashtag_score = OrderedCounter()
+        
+        score_list = [pair[0] for pair in sorted(hashtag_score.items(), key=lambda item: item[1], reverse=True)]
+        old_index = -1
+        if user_key in score_list:
+            old_index = score_list.index(user_key)
         
         hashtag_score[user_key] = score
         if len(hashtag_score) > self.limit:
-            hashtag_score = Counter(dict(hashtag_score.most_common(self.limit)))
-            
+            hashtag_score = OrderedCounter(dict(hashtag_score.most_common(self.limit)))
+       
+        score_list = [pair[0] for pair in sorted(hashtag_score.items(), key=lambda item: item[1], reverse=True)]
+        new_index = -1
+        if user_key in score_list:
+            new_index = score_list.index(user_key)
+        
         
         self.mc.set(hashtag_score_key, hashtag_score)
+        logging.debug("Hashtag: %s User: %s Score: %s Position old: %d new: %d", hashtag, user_id, score, old_index, new_index)
+        
         #logging.debug("Hashtag: %s Top: %s", hashtag, hashtag_score)
+        
