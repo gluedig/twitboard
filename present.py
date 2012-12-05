@@ -5,7 +5,6 @@ Created on Nov 30, 2012
 '''
 from flask import Flask, abort, render_template, Response, request
 import json
-import time
 
 app = Flask(__name__)
 
@@ -72,10 +71,14 @@ def page_user_info(user_id):
 @app.route('/tag/<hashtag>')
 @app.route('/tag/<hashtag>/<int:number>')
 def page_hashtag_topn(hashtag, number=10):
-    return render_template('hashtag_score.tmp', hashtag=hashtag, number=number)
+    animate = 'false'
+    if 'animate' in request.args:
+        animate = request.args['animate']
+        
+    return render_template('hashtag_score.tmp', hashtag=hashtag, number=number, animate=animate)
+
 
 from collections import Iterable
-import random
 class HashtagUpdates(Iterable):
     def __init__(self, hashtag, ds, zmq_ctx=None):
         self.hashtag = hashtag

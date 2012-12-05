@@ -1,5 +1,28 @@
 function handle_sort(event) {
-	$("#leaderboard>li").tsort({attr:'score', order:'desc'});
+
+	if (animate) {
+		var $Ul = $('ol#leaderboard');
+		$Ul.css({position:'relative',height:$Ul.height(),display:'block'});
+		var iLnH;
+		var $Li = $('ol#leaderboard>li');
+		$Li.each(function(i,el){
+			var iY = $(el).position().top;
+			$.data(el,'h',iY);
+			if (i===1) iLnH = iY;
+		});
+		$Li.tsort({attr:'score', order:'desc'}).each(function(i,el){
+			var $El = $(el);
+			var iFr = $.data(el,'h');
+			var iTo = i*iLnH;
+			$El.css({position:'absolute',top:iFr}).animate(
+				{top:iTo},
+				200
+			);
+		});
+	} else {
+		$("#leaderboard>li").tsort({attr:'score', order:'desc'});
+	}
+	
 	var children = $("#leaderboard").children();
 	if ( children.length > results ) {
 		var last = children.last();
@@ -11,9 +34,9 @@ function handle_sort(event) {
 function msg_move(data) {
  	var target = $("#"+data.user_id); 
   	var score = +data.score;
-
+	
  	console.log("move ", score, target, data);
-
+	
 	target.attr('score', score);
 	$('#'+data.user_id+'>#score').text(score);
 	
@@ -40,6 +63,20 @@ function remove_row(data) {
 function handle_sse_event(event, data) {
 	var old_pos = +data.old_pos
 	var new_pos = +data.new_pos
+	
+	
+	//we dont care
+	if (new_pos > results && old_pos > results)
+		return true;
+	
+	
+	var target = $("#"+data.user_id); 
+	
+	if ( target == '' ) {
+		$("#leaderboard").trigger('refresh');
+		return true;
+	}
+	
 	if (old_pos != -1 && new_pos != -1) {
 		msg_move(data);
 	} else {
@@ -58,6 +95,8 @@ function sse_message(e) {
 	{
 		$("#leaderboard").trigger('sse_message', data);
  	}
+ 	if (data.msgtype == 'refresh')
+ 		$("#leaderboard").trigger('refresh');
 };
 
 function new_li_data(user_id, score, user_name ) {
@@ -65,7 +104,8 @@ function new_li_data(user_id, score, user_name ) {
 	return item;
 }; 	
 
-function refresh() {
+function refresh(event) {
+  console.log('refresh');
   $.getJSON('/api/tag/'+ hashtag +'/'+results, function(data) {
   	  $("#leaderboard").empty();
   	  $.each(data['list'], function(key, val) {

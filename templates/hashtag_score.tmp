@@ -21,17 +21,20 @@
 <script type="text/javascript">
 var hashtag = '{{hashtag}}';
 var results = '{{number}}';
-
+var animate = {{animate}};
 
 $(document).ready(function() {
-	refresh();
+	$("#leaderboard").on('sort', handle_sort);
+	$("#leaderboard").on('refresh', refresh);
     $("#leaderboard").disableSelection();
+    
+    $("#leaderboard").trigger('refresh');
     
     var source = new EventSource('/updates/' + hashtag);
     source.onmessage = function(e){sse_message(e)};
 	source.onerror = function(s){refresh()};
 	$("#leaderboard").on('sse_message', handle_sse_event);
-	$("#leaderboard").on('sort', handle_sort);
+	
 	
 });
 
