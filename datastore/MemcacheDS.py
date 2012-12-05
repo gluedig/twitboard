@@ -7,6 +7,7 @@ from collections import Counter, OrderedDict
 from hashlib import md5
 import memcache
 import logging
+import zmq
 
 class OrderedCounter(Counter, OrderedDict):
     'Counter that remembers the order elements are first encountered'
@@ -18,11 +19,16 @@ class OrderedCounter(Counter, OrderedDict):
         return self.__class__, (OrderedDict(self),)
 
 class MemcacheDS(object):
-    def __init__(self, flush=False, limit=25):
+    def __init__(self, flush=False, limit=25, zmq_ctx=None):
         self.mc = memcache.Client(['127.0.0.1:11211'], debug=0)
         self.limit = limit
         if flush:
             self.mc.flush_all()
+            
+        if zmq_ctx:
+            self.zmq_socket = zmq_ctx.socket(zmq.PUB)
+            self.zmq_socket.bind('inproc://queue') 
+             
 
     def _user_key(self, user_id):
         return md5("user_id:%s"%user_id).hexdigest()
@@ -103,9 +109,11 @@ class MemcacheDS(object):
         if user_key in score_list:
             new_index = score_list.index(user_key)
         
-        
         self.mc.set(hashtag_score_key, hashtag_score)
-        logging.debug("Hashtag: %s User: %s Score: %s Position old: %d new: %d", hashtag, user_id, score, old_index, new_index)
+        
+        if self.zmq_socket and (new_index != -1 or old_index != -1):
+            self.zmq_socket.send_unicode("%s;%s;%s;%d;%d;%d"%(hashtag, user_id, user_name, score, old_index, new_index))
+            logging.debug("Hashtag: %s User: %s Score: %s Position old: %d new: %d", hashtag, user_id, score, old_index, new_index)
         
         #logging.debug("Hashtag: %s Top: %s", hashtag, hashtag_score)
         

@@ -77,41 +77,37 @@ def page_hashtag_topn(hashtag, number=10):
 from collections import Iterable
 import random
 class HashtagUpdates(Iterable):
-    def __init__(self, hashtag, ds):
+    def __init__(self, hashtag, ds, zmq_ctx=None):
         self.hashtag = hashtag
         self.data = ds
         self.n = 0
-        
+        if zmq_ctx:
+            self.zmq_socket = zmq_ctx.socket(zmq.SUB)
+            self.zmq_socket.setsockopt(zmq.SUBSCRIBE, '')
+            self.zmq_socket.connect("tcp://localhost:5556") 
+             
         
     def __iter__(self):
-        hashtag_score = self.data.hashtag_topn(self.hashtag, 25)
-        while hashtag_score:
-            
-            pos = random.randint(0, len(hashtag_score)-1)
-            dir = -1 if random.randint(0,1) == 0 else 1
-            dist = random.randint(1,len(hashtag_score)/3)
-            move = dir*dist
-            new_pos = pos + (dir*dist)
-            
-            if new_pos < 0 or new_pos > len(hashtag_score):
-                new_pos = pos
+        while True:
+            if self.zmq_socket:
+                string = self.zmq_socket.recv_unicode()
+                (hashtag, user_id, user_name, score, old_pos, new_pos) = string.split(";")
+                
+                if hashtag == self.hashtag:    
+                    data = {'msgtype': 'update', 'user_id': user_id, 'old_pos' : old_pos, 'new_pos': new_pos, 'score': score, 'user_name': user_name}
+                    self.n += 1
+                    yield unicode("event: message\nid: {0}\ndata: {1}\n\n".format(self.n, json.dumps(data)))
 
-            user_id = self.data.user_data_bykey(hashtag_score[pos][0])[0]
-            score = hashtag_score[pos][1]
-            data = {'user_id': user_id, 'move' : move, 'score': score}
-            yield unicode("event: message\nid: {0}\ndata: {1}\n\n".format(self.n, json.dumps(data)))
-            
-            time.sleep(5)
-            hashtag_score = self.data.hashtag_topn(self.hashtag, 25)
-            self.n += 1
 
 @app.route('/updates/<hashtag>', methods=["POST","GET"])
 def hashtag_updates(hashtag):
-    return Response(HashtagUpdates(hashtag, app.data), headers=[('cache-control','no-cache'), ('connection', 'keep-alive')],
+    return Response(HashtagUpdates(hashtag, ds=app.data, zmq_ctx=app.zmq_ctx), headers=[('cache-control','no-cache'), ('connection', 'keep-alive')],
         content_type='text/event-stream')
 
 from datastore import MemcacheDS
+import zmq
 if __name__ == '__main__':
     app.debug = True
+    app.zmq_ctx = zmq.Context() 
     app.data = MemcacheDS.MemcacheDS()
     app.run(threaded=True)
