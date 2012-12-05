@@ -23,12 +23,12 @@ function handle_sort(event) {
 		$("#leaderboard>li").tsort({attr:'score', order:'desc'});
 	}
 	
-	var children = $("#leaderboard").children();
-	if ( children.length > results ) {
-		var last = children.last();
+	while ( $("#leaderboard").children().length > no_results ) {
+		var last = $("#leaderboard").children().last();
 		console.log("delete ", last.attr('score'), last);
 		last.remove();
 	}
+	
 };
 
 function msg_move(data) {
@@ -65,14 +65,9 @@ function handle_sse_event(event, data) {
 	var new_pos = +data.new_pos
 	
 	
-	//we dont care
-	if (new_pos > results && old_pos > results)
-		return true;
-	
-	
 	var target = $("#"+data.user_id); 
 	
-	if ( target == '' ) {
+	if ( target == null ) {
 		$("#leaderboard").trigger('refresh');
 		return true;
 	}
@@ -106,8 +101,9 @@ function new_li_data(user_id, score, user_name ) {
 
 function refresh(event) {
   console.log('refresh');
-  $.getJSON('/api/tag/'+ hashtag +'/'+results, function(data) {
+  $.getJSON('/api/tag/'+ hashtag, function(data) {
   	  $("#leaderboard").empty();
+  	  $("#leaderboard").css('list-style-type', 'decimal');
   	  $.each(data['list'], function(key, val) {
    		var item = new_li_data(val['user_info']['user_id'], val['score'], val['user_info']['user_name']);
    		$("#leaderboard").append(item)

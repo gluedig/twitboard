@@ -11,7 +11,7 @@
         <script src="//netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/js/bootstrap.min.js"></script>
         
     	<style>
-    #leaderboard { list-style-type: decimal; padding-left: 1em;}
+    #leaderboard { list-style-type: none; padding-left: 1em;}
     #leaderboard li {  padding-left: 0.5em; font-size: 1em; }
     #user_name { float: left; }
     #score { float: left; margin-left: 0.5em }
@@ -20,8 +20,8 @@
 <script src="/static/board.js"></script>    
 <script type="text/javascript">
 var hashtag = '{{hashtag}}';
-var results = '{{number}}';
 var animate = {{animate}};
+var no_results = {{results}};
 
 $(document).ready(function() {
 	$("#leaderboard").on('sort', handle_sort);
@@ -42,6 +42,7 @@ $(document).ready(function() {
     </head>
     <body>
     <ol id="leaderboard">
+    	<li>Loading...</li>
     </ol>
     </body>
 </html>

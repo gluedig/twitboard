@@ -42,11 +42,11 @@ class MemcacheDS(object):
     def _hashtag_users_key(self, hashtag):
         return md5("hashtagusers:%s"%hashtag).hexdigest()
     
-    def hashtag_topn(self, hashtag, number):
+    def hashtag_topn(self, hashtag):
         hashtag_score_key = self._hashtag_score_key(hashtag)
         hashtag_score = self.mc.get(hashtag_score_key)
         if hashtag_score:
-            return hashtag_score.most_common(number)
+            return hashtag_score.items()
         else:
             return None
 

@@ -13,11 +13,10 @@ def main_route():
     return "hello"
 
 @app.route('/api/tag/<hashtag>')
-@app.route('/api/tag/<hashtag>/<int:number>')
-def hashtag_topn(hashtag, number=10):
+def hashtag_topn(hashtag):
     
-    hashtag_score = app.data.hashtag_topn(hashtag, number)
-    leaderboard = {'hashtag':hashtag, 'top':number, 'count': 0, 'list': []}
+    hashtag_score = app.data.hashtag_topn(hashtag)
+    leaderboard = {'hashtag':hashtag, 'count': 0, 'list': []}
     
     count = 0
     if not hashtag_score:
@@ -34,7 +33,6 @@ def hashtag_topn(hashtag, number=10):
 
         count += 1 
 
-    
     leaderboard['count'] = count
     return json.dumps(leaderboard)
 
@@ -69,14 +67,20 @@ def page_user_info(user_id):
 
 
 @app.route('/tag/<hashtag>')
-@app.route('/tag/<hashtag>/<int:number>')
-def page_hashtag_topn(hashtag, number=10):
+def page_hashtag_topn(hashtag):
     animate = 'false'
+    results = 25
     if 'animate' in request.args:
         animate = request.args['animate']
-        
-    return render_template('hashtag_score.tmp', hashtag=hashtag, number=number, animate=animate)
-
+    if 'results' in request.args:
+        try:
+            results = int(request.args['results'])
+            if results > 25:
+                results = 25
+        except ValueError:
+            pass
+            
+    return render_template('hashtag_score.tmp', hashtag=hashtag,  animate=animate, results=results)
 
 from collections import Iterable
 class HashtagUpdates(Iterable):
