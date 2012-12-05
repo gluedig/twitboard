@@ -15,7 +15,8 @@ function msg_move(data) {
  	console.log("move ", score, target, data);
 
 	target.attr('score', score);
-	target.html('<div id="user_name">' + data.user_name + '</div><div id="score">' + score  + '</div>');
+	$('#'+data.user_id+'>#score').text(score);
+	
 	
 	$("#leaderboard").trigger('sort');
 }
