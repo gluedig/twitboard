@@ -5,8 +5,13 @@ Created on Nov 30, 2012
 '''
 from flask import Flask, abort, render_template, Response, request
 import json
+from datastore import MemcacheDS
+import zmq
 
 app = Flask(__name__)
+app.debug = True
+app.zmq_ctx = zmq.Context() 
+app.data = MemcacheDS.MemcacheDS()
 
 @app.route('/')
 def main_route():
@@ -111,10 +116,5 @@ def hashtag_updates(hashtag):
     return Response(HashtagUpdates(hashtag, ds=app.data, zmq_ctx=app.zmq_ctx), headers=[('cache-control','no-cache'), ('connection', 'keep-alive')],
         content_type='text/event-stream')
 
-from datastore import MemcacheDS
-import zmq
 if __name__ == '__main__':
-    app.debug = True
-    app.zmq_ctx = zmq.Context() 
-    app.data = MemcacheDS.MemcacheDS()
-    app.run(threaded=True)
+    app.run(host='0.0.0.0', threaded=True)
