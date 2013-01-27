@@ -1,0 +1,35 @@
+<html>
+    <head>
+        <link href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/css/bootstrap-combined.min.css" rel="stylesheet">
+        <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+        <!--[if lt IE 9]>
+        <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+        <![endif]-->
+        <script src="//netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/js/bootstrap.min.js"></script>
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+    
+    
+<script type="text/javascript">
+
+$(document).ready(function() {
+    $.getJSON('/api/tags', function(data) {
+      var items = [];
+	  
+  	  $.each(data, function(key, val) {
+      	items.push('<li><a href="/tag/'+val+'">' + val + '</a></li>');
+      });
+      
+      var in_html = '<li class="nav-header">Tracked hashtags</li>'
+      in_html += items.join('')
+      
+      $('<ul/>', {
+        'class': 'nav nav-list',
+        html: in_html
+      }).appendTo('body');
+    });
+});
+
+</script>
+    </head>
+    <body></body>
+</html>
